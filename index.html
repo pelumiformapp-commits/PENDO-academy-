@@ -3,19 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pendo Academy CBT Platform</title>
+    <title>Pendo Academy - Paid CBT</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
-        body { background: #f0f2f5; padding: 20px; }
-       .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1, h2 { color: #1877f2; margin-bottom: 20px; text-align: center; }
-        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
-        button { padding: 12px 20px; background: #1877f2; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin: 5px; }
-        button:hover { background: #166fe5; }
-        button.danger { background: #e41e3f; }
-        button.danger:hover { background: #c51b37; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f6f8fa; margin: 0; padding: 0; }
+       .container { background: white; padding: 25px; border-radius: 12px; border: 1px solid #d0d7de; max-width: 700px; margin: 30px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { color: #1f2328; border-bottom: 2px solid #2ea44f; padding-bottom: 10px; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 8px 0 16px 0; box-sizing: border-box; border: 2px solid #d0d7de; border-radius: 8px; font-size: 16px; }
+        button { background: #2ea44f; color: white; border: none; padding: 14px 20px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 10px; }
+        button:hover { background: #2c974b; }
+       .question-box { background: #f6f8fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2ea44f; }
+       .option { display: block; background: white; padding: 12px; margin: 8px 0; border: 2px solid #d0d7de; border-radius: 8px; cursor: pointer; }
+       .option:hover { border-color: #2ea44f; }
+       .option input { width: auto; margin-right: 12px; }
+        #timer { position: fixed; top: 15px; right: 15px; background: #d1242f; color: white; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 18px; z-index: 1000; }
        .hidden { display: none; }
-       .question { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
-       .option { display: block; margin: 8px 0; padding: 10px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; }
-       .option:hover { background: #f0f2f5; }
-        #timer { position: fixed; top: 20px; right: 20px; background: #e41e3f; color: white; padding: 10px 20px; border-radius: 20px; font-weight
+        #warning { background: #fff8c5; border: 2px solid #f9c513; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: center; font-weight: bold; color: #7d4e00; }
+       .price-tag { background: #2ea44f; color: white; padding: 15px; border-radius: 8px; text-align: center; font-size: 24px; font-weight: bold; margin: 20px 0; }
+    </style>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body oncontextmenu="return false" oncopy="return false" oncut="return false" onpaste="return false">
+
+<div id="timer" class="hidden">Time: 30:00</div>
+
+<!-- ADMIN LOGIN -->
+<div id="admin-login" class="container">
+    <h1>Pendo Academy Admin Portal</h1>
+    <input type="password" id="admin-pass" placeholder="Enter Admin Password">
+    <button onclick="adminLogin()">Login to Dashboard</button>
+</div>
+
+<!-- ADMIN DASHBOARD -->
+<div id="admin-dash" class="container hidden">
+    <h1>Exam Setup Dashboard</h1>
+    
+    <label>Exam Title</label>
+    <input type="text" id="exam-title" value="Pendo Academy Batch A Exam">
+    
+    <label>Duration (minutes)</label>
+    <input type="number" id="exam-time" value="30">
+    
+    <label>Exam Fee (₦)</label>
+    <input type="number" id="exam-fee" value="1000">
+    
+    <label>Paystack Public Key</label>
+    <input type="text" id="paystack-key" placeholder="pk_live_xxxxxxxxxx">
+    
+    <label>Formspree Form ID</label>
+    <input type="text" id="formspree-id" placeholder="xleqkwnp">
+    
+    <label>Questions - JSON Format</label>
+    <textarea id="questions" rows="12" placeholder='[{"q":"Nigeria capital?","options":["Lagos","Abuja","Kano","Ibadan"],"answer":1},{"q":"2+2=?","options":["3","4","5","6"],"answer":1}]'></textarea>
+    
+    <button onclick="saveExamSettings()">💾 Save Exam Settings</button>
+    <hr style="margin: 20px 0;">
+    <p><b>Student Payment Link:</b></p>
+    <input type="text" id="student-link" readonly>
+</div>
+
+<!-- STUDENT PAYMENT PAGE -->
+<div id="student-pay" class="container hidden">
+    <h1 id="pay-exam-title">Pendo Academy Exam</h1>
+    <div class="price-tag">Exam Fee: ₦<span id="display-fee">1000</span></div>
+    
+    <label>Full Name *</label>
+    <input type="text" id="s-name" placeholder="Your full name as you want on certificate" required>
+    
+    <label>Email Address *</label>
+    <input type="email" id="s-email" placeholder="Your active email" required>
+    
+    <label>Phone Number *</label>
+    <input type="tel" id="s-phone" placeholder="080xxxxxxxx" required>
+    
+    <button onclick="startPayment()">💳 Pay ₦<span id="btn-fee">1000</span> to Start Exam</button>
+    <p style="text-align: center; font-size: 14px; color: #656d76; margin-top: 15px;">Secure payment via Paystack. Money goes direct to your bank.</p>
+</div>
+
+<!-- STUDENT EXAM PAGE -->
+<div id="student-exam" class="container hidden">
+    <h1 id="exam-title-header"></h1>
+    <div id="warning" class="hidden">⚠️ WARNING: Don't leave this tab! <span id="warn-count">2</span> chances remaining. Auto-submit at 0.</div>
+    
+    <form id="result-form" method="POST">
+        <input type="hidden" name="student_name" id="r-name">
+        <input type="hidden" name="student_email" id="r-email">
+        <input type="hidden" name="student_phone" id="r-phone">
+        <input type="hidden" name="payment_ref" id="r-ref">
+        <input type="hidden" name="score" id="r-score">
+        <input type="hidden" name="answers" id="r-answers">
+        <div id="questions-container"></div>
+        <button type="button" onclick="submitExam()">Submit Exam Now</button>
+    </form>
+</div>
+
+<!-- SUCCESS PAGE -->
+<div id="success-page" class="container hidden">
+    <h1>✅ Exam Submitted Successfully!</h1>
+    <h2 id="final-result"></h2>
+    <p>Your results have been sent to Pendo Academy admin.</p>
+    <p>You will receive your certificate via email within 24 hours.</p>
+    <p><b>Payment Reference:</b> <span id="show-ref"></span></p>
+</div>
+
+<script>
+    // CHANGE THIS PASSWORD IMMEDIATELY!
+    const ADMIN_PASSWORD = "bossanol123";
+    
+    let examData = {
+        title: "Pendo Academy Batch A Exam",
+        time: 30,
+        fee: 1000,
+        paystackKey: "",
+        formspreeId: "",
+        questions: [
+            {q:"What is the capital of Nigeria?", options:["Lagos","Abuja","Kano","Port Harcourt"], answer:1},
+            {q:"2 + 2 =?", options:["3","4","5","6"], answer:1}
+        ]
+    };
+    
+    let tabWarnings = 2;
+    let examCountdown;
+    let secondsLeft;
+    let studentInfo = {};
+
+    // Load saved data
+    if(localStorage.pendoExam) {
+        examData = JSON.parse(localStorage.pendoExam);
+    }
+
+    // Route user
+    if(window.location.hash === '#student') {
+        showStudentPay();
+    } else {
+        document.getElementById('student-link').value = window.location.href.split('#')[0] + '#student';
+    }
+
+    function adminLogin() {
+        if(document.getElementById('admin-pass').value === ADMIN_PASSWORD) {
+            document.getElementById('admin-login').classList.add('hidden');
+            document.getElementById('admin-dash').classList.remove('hidden');
+            loadForm();
+        } else {
+            alert('Incorrect password');
+        }
+    }
+
+    function loadForm() {
+        document.getElementById('exam-title').value = examData.title;
+        document.getElementById('exam-time').value = examData.time;
+        document.getElementById('exam-fee').value = examData.fee;
+        document.getElementById('paystack-key').value = examData.paystackKey;
+        document.getElementById('formspree-id').value = examData.formspreeId;
+        document.getElementById('questions').value = JSON.stringify(examData.questions, null, 2);
+    }
+
+    function saveExamSettings() {
+        try {
+            examData.title = document.getElementById('exam-title').value;
+            examData.time = parseInt(document.getElementById('exam-time').value);
+            examData.fee = parseInt(document.getElementById('exam-fee').value);
+            examData.paystackKey = document.getElementById('paystack-key').value;
+            examData.formspreeId = document.getElementById('formspree-id').value;
+            examData.questions = JSON.parse(document.getElementById('questions').value);
+            localStorage.pendoExam = JSON.stringify(examData);
+            alert('✅ Exam settings saved! Students can now pay and write exam.');
+        } catch(e) {
+            alert('❌ Error: Check your Questions JSON format. Must be valid.');
+        }
+    }
+
+    function showStudentPay() {
+        document.getElementById('admin-login').classList.add('hidden');
+        document.getElementById('student-pay').classList.remove('hidden');
+        document.getElementById('pay-exam-title').innerText = examData.title;
+        document.getElementById('display-fee').innerText = examData.fee;
+        document.getElementById('btn-fee').innerText = examData.fee;
+    }
+
+    function startPayment() {
+        studentInfo.name = document.getElementById('s-name').value.trim();
+        studentInfo.email = document.getElementById('s-email').value.trim();
+        studentInfo.phone = document.getElementById('s-phone').value.trim();
+        
+        if(!studentInfo.name ||!studentInfo.email ||!studentInfo.phone) {
+            alert('Please fill all fields');
+            return;
+        }
+        if(!examData.paystackKey) {
+            alert('Admin has not configured payment yet. Contact Pendo Academy.');
+            return;
+        }
+
+        let ref = 'PENDO_'+Date.now();
+        let handler = PaystackPop.setup({
+            key: examData.paystackKey,
+            email: studentInfo.email,
+            amount: examData.fee * 100,
+            currency: 'NGN',
+            ref: ref,
+            metadata: {custom_fields: [{display_name: "Student Name", variable_name: "student_name", value: studentInfo.name}]},
+            onClose: function(){ alert('Payment cancelled. You cannot access exam without payment.'); },
+            callback: function(response){ 
+                studentInfo.ref = response.reference;
+                launchExam(); 
+            }
+        });
+        handler.openIframe();
+    }
+
+    function launchExam() {
+        document.getElementById('student-pay').classList.add('hidden');
+        document.getElementById('student-exam').classList.remove('hidden');
+        document.getElementById('timer').classList.remove('hidden');
+        document.getElementById('exam-title-header').innerText = examData.title;
+        
+        // Anti-cheat: Block tab switch
+        document.addEventListener('visibilitychange', function() {
+            if(document.hidden &&!document.getElementById('student-exam').classList.contains('hidden')) {
+                tabWarnings--;
+                document.getElementById('warning').classList.remove('hidden');
+                document.getElementById('warn-count').innerText = tabWarnings;
+                if(tabWarnings <= 0) {
+                    alert('You left the exam tab 2 times. Exam auto-submitted with current answers.');
+                    submitExam();
+                }
+            }
+        });
+
+        // Render questions
+        let html = '';
+        examData.questions.forEach((q, idx) => {
+            html += `<div class="question-box"><b>Question ${idx+1}:</b> ${q.q}<div>`;
+            q.options.forEach((opt, optIdx) => {
+                html += `<label class="option"><input type="radio" name="q${idx}" value="${optIdx}" required> ${opt}</label>`;
+            });
+            html += `</div></div>`;
+        });
+        document.getElementById('questions-container').innerHTML = html;
+
+        // Start countdown
+        secondsLeft = examData.time * 60;
+        examCountdown = setInterval(updateCountdown, 1000);
+        
+        // Set form action
+        document.getElementById('result-form').action = `https://formspree.io/f/${examData.formspreeId}`;
+    }
+
+    function updateCountdown() {
+        secondsLeft--;
+        let min = Math.floor(secondsLeft / 60);
+        let sec = secondsLeft % 60;
+        document.getElementById('timer').innerText = `Time: ${min}:${sec.toString().padStart(2,'0')}`;
+        if(secondsLeft <= 0) {
+            clearInterval(examCountdown);
+            alert('Time up! Submitting your exam now.');
+            submitExam();
+        }
+    }
+
+    function submitExam() {
+        clearInterval(examCountdown);
+        let score = 0;
+        let studentAnswers = [];
+        
+        examData.questions.forEach((q, idx) => {
+            let chosen = document.querySelector(`input[name="q${idx}"]:checked`);
+            let ansValue = chosen? parseInt(chosen.value) : -1;
+            studentAnswers.push(ansValue);
+            if(ansValue === q.answer) score++;
+        });
+
+        // Fill hidden form
+        document.getElementById('r-name').value = studentInfo.name;
+        document.getElementById('r-email').value = studentInfo.email;
+        document.getElementById('r-phone').value = studentInfo.phone;
+        document.getElementById('r-ref').value = studentInfo.ref;
+        document.getElementById('r-score').value = `${score}/${examData.questions.length}`;
+        document.getElementById('r-answers').value = JSON.stringify(studentAnswers);
+        
+        // Show result
+        document.getElementById('student-exam').classList.add('hidden');
+        document.getElementById('timer').classList.add('hidden');
+        document.getElementById('success-page').classList.remove('hidden');
+        document.getElementById('final-result').innerText = `Your Score: ${score} out of ${examData.questions.length}`;
+        document.getElementById('show-ref').innerText = studentInfo.ref;
+        
+        // Submit to your email
+        document.getElementById('result-form').submit();
+    }
+</script>
+
+</body>
+        </html>
